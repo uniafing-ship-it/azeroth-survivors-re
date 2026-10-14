@@ -72,13 +72,38 @@ pub fn wow_data() -> Option<PathBuf> {
 
 /// Every place [`wow_data`] looks, in order, whether or not it exists, for a "looked in" message.
 pub fn candidates() -> Vec<PathBuf> {
-    candidates_from(
-        std::env::var_os("WOW_DATA").map(PathBuf::from),
+    let override_dir = std::env::var_os("WOW_DATA").map(PathBuf::from);
+    let base = candidates_from(
+        override_dir.clone(),
         project_folder(),
         std::env::current_exe()
             .ok()
             .and_then(|e| e.parent().map(Path::to_path_buf)),
-    )
+    );
+
+    // On iPhone the installed .app bundle is read-only. Support importing a
+    // personally owned WoW/Data folder through Files into this app's Documents
+    // sandbox, without bundling copyrighted data in the public repository.
+    #[cfg(target_os = "ios")]
+    {
+        let mut candidates = base;
+        if !override_dir.as_ref().is_some_and(|d| d.as_os_str().is_empty()) {
+            if let Some(home) = std::env::var_os("HOME") {
+                let docs = PathBuf::from(home).join("Documents");
+                let offset = usize::from(override_dir.is_some());
+                candidates.splice(offset..offset, [
+                    docs.join("Data"),
+                    docs.join("WoW/Data"),
+                ]);
+            }
+        }
+        candidates
+    }
+
+    #[cfg(not(target_os = "ios"))]
+    {
+        base
+    }
 }
 
 /// [`candidates`] with the environment passed in: a test that set `$WOW_DATA` would change the
