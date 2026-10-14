@@ -4,7 +4,7 @@ name: Native iOS cargo probe
 on:
   workflow_dispatch:
   push:
-    branches: [iphone-native-probe]
+    branches: [iphone-native-probe, iphone-native-touch]
     paths:
       - '.github/workflows/native-ios-probe.yml'
       - 'native-ios/**'
