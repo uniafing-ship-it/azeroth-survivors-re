@@ -9,6 +9,7 @@ on:
       - '.github/workflows/native-ios-probe.yml'
       - 'native-ios/**'
       - 'crates/**'
+      - 'third_party/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
 
