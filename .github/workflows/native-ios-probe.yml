@@ -1,0 +1,65 @@
+# Native iOS feasibility probe: no Apple credentials, no private game data.
+name: Native iOS cargo probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [iphone-native-probe]
+    paths:
+      - '.github/workflows/native-ios-probe.yml'
+      - 'native-ios/**'
+      - 'crates/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-arm64-check:
+    name: Verify native iOS Rust compatibility
+    runs-on: macos-15
+    timeout-minutes: 100
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_BUILD_JOBS: '4'
+    steps:
+      - name: Checkout sources (no game data)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust and iPhoneOS target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          targets: aarch64-apple-ios
+      - name: Cache Rust compilation
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: native-ios-device
+      - name: Confirm Xcode SDK
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+          rustc --version
+          rustup target list --installed
+          plutil -lint native-ios/Info.plist
+      - name: Check full Survivors app against native ARM64 iPhone
+        run: |
+          set -o pipefail
+          mkdir -p native-ios/reports
+          cargo check --locked --target aarch64-apple-ios \
+            --package warcraft-survivors --no-default-features \
+            2>&1 | tee native-ios/reports/cargo-check-iphoneos.txt
+      - name: Upload compiler diagnostics (not an app)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ios-probe-logs
+          path: native-ios/reports/
+          if-no-files-found: ignore
+          retention-days: 7
