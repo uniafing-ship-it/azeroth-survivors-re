@@ -11,6 +11,11 @@
 #include <string.h>
 #include <time.h>
 
+/* iOS has no process shell, and its SDK marks system() unavailable. */
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 #define loslib_c
 #define LUA_LIB
 
@@ -36,11 +41,11 @@ static int os_pushresult (lua_State *L, int i, const char *filename) {
 
 
 static int os_execute (lua_State *L) {
-#if !defined(__wasi__)
+#if !defined(__wasi__) && !(defined(__APPLE__) && TARGET_OS_IPHONE)
   lua_pushinteger(L, system(luaL_optstring(L, 1, NULL)));
   return 1;
 #else
-  luaL_error(L, "not supported on WASI");
+  return luaL_error(L, "os.execute is unavailable on iOS/WASI");
 #endif
 }
 

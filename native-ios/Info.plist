@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key><string>dev.azsurvivors.iosprobe</string>
+    <key>CFBundleExecutable</key><string>warcraft-survivors</string>
+    <key>CFBundleName</key><string>Azeroth Survivors</string>
+    <key>CFBundleDisplayName</key><string>Azeroth Survivors</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.0.1</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>MinimumOSVersion</key><string>17.0</string>
+    <key>UILaunchScreen</key><dict/>
+    <key>UIRequiresFullScreen</key><true/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+    <key>UIRequiredDeviceCapabilities</key><array><string>arm64</string><string>metal</string></array>
+</dict>
+</plist>

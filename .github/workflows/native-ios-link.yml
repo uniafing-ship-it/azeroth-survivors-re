@@ -1,0 +1,79 @@
+# Cross-link Rust/Bevy Warcraft Survivors for iPhoneOS and inspect an UNSIGNED bundle.
+name: Native iOS link and package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [iphone-native-probe]
+    paths:
+      - '.github/workflows/native-ios-link.yml'
+      - 'native-ios/**'
+      - 'crates/**'
+      - 'third_party/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ios-link-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  link-ios-arm64:
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_BUILD_JOBS: '3'
+      CARGO_INCREMENTAL: '0'
+      IPHONEOS_DEPLOYMENT_TARGET: '17.0'
+    steps:
+      - name: Checkout reviewed open-source code only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install pinned Rust and iOS target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          targets: aarch64-apple-ios
+      - name: Cache release compilation
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: iphone-device-release
+      - name: Check SDK and bundle configuration
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-path
+          rustc --version
+          plutil -lint native-ios/Info.plist
+          df -h .
+      - name: Link native iPhoneOS executable
+        run: |
+          set -o pipefail
+          mkdir -p native-ios/artifacts/reports
+          cargo build --locked --release --target aarch64-apple-ios \
+            --package warcraft-survivors --no-default-features \
+            2>&1 | tee native-ios/artifacts/reports/cargo-ios-link.log
+      - name: Package unsigned app and inspect Mach-O
+        run: bash native-ios/package_unsigned.sh
+      - name: Upload diagnostic logs even if linking fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-iphone-link-logs
+          path: native-ios/artifacts/reports/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Upload unsigned bundle (NOT INSTALLABLE)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: azeroth-iphone-UNSIGNED-not-installable
+          path: |
+            native-ios/artifacts/azeroth-survivors-UNSIGNED-NOT-INSTALLABLE.ipa
+            native-ios/artifacts/README_UNSIGNED.txt
+          retention-days: 7
+          if-no-files-found: error
