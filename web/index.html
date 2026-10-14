@@ -92,6 +92,8 @@
       }
     })
     .catch((e) => console.warn('bridge.js:', e));
+  // In Safari, expose touch joystick and action buttons before starting the WASM client.
+  import('./mobile-controls.js').catch(e => console.warn('mobile controls:', e));
   const w = await boot(init);
   bind(w.memory);
 </script>
