@@ -16,6 +16,7 @@ function setup(t, fetch) {
   const children = new Map();
   const element = () => ({
     style: { setProperty() {} }, classList: { add() {}, remove() {} },
+    appendChild() {}, remove() {},
     querySelector(selector) {
       if (!children.has(selector)) children.set(selector, element());
       return children.get(selector);
