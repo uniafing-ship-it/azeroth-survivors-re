@@ -1,0 +1,53 @@
+# Builds the open-source WebGPU WASM client only (no Blizzard MPQs).
+name: Azeroth iPhone WASM proof
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [iphone-wasm-stage1]
+    paths:
+      - '.github/workflows/ios-wasm.yml'
+      - 'web/**'
+      - 'crates/benilla-app/src/survivors/**'
+      - 'scripts/web-build.sh'
+
+permissions:
+  contents: read
+
+# Only the latest commit needs a full browser build; cancel outdated runs.
+concurrency:
+  group: ios-wasm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.98.1'
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: JavaScript syntax and controls
+        run: |
+          node --check web/mobile-controls.js
+          node --test web/tests/mobile-controls.test.mjs
+      - name: Setup WASM build tools
+        run: scripts/web-setup.sh
+      - name: Build WebGPU WASM client
+        run: scripts/web-build.sh
+      - name: Verify browser artifact
+        run: |
+          test -s web/dist/wenilla_bg.wasm
+          test -s web/dist/wenilla.js
+          test -s web/dist/mobile-controls.js
+          du -h web/dist/wenilla_bg.wasm
+      - name: Upload browser client without game resources
+        uses: actions/upload-artifact@v4
+        with:
+          name: azeroth-ios-wasm-client
+          path: web/dist/
+          retention-days: 7
+          if-no-files-found: error

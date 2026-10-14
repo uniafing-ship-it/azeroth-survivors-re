@@ -16,6 +16,8 @@ mod menu;
 mod minimap;
 mod mobility;
 mod units;
+#[cfg(target_arch = "wasm32")]
+mod touch_input;
 
 use benilla_world::schedule::WorldStage;
 use bevy::prelude::*;
@@ -133,6 +135,10 @@ impl Plugin for SurvivorsPlugin {
             .add_systems(OnEnter(Phase::Paused), pause)
             .add_systems(OnEnter(Phase::GameOver), unpause)
             .add_systems(OnEnter(Phase::Menu), (unpause, reset_run));
+        // Synchronize virtual touch buttons after Bevy has reset per-frame input flags.
+        #[cfg(target_arch = "wasm32")]
+        app.init_resource::<touch_input::TouchHeld>()
+            .add_systems(PreUpdate, touch_input::poll.after(bevy::input::InputSystems));
         if let Some(auto) = auto::from_env() {
             app.insert_resource(auto)
                 .add_systems(
