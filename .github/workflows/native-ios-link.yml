@@ -4,7 +4,7 @@ name: Native iOS link and package
 on:
   workflow_dispatch:
   push:
-    branches: [iphone-native-probe]
+    branches: [iphone-native-probe, iphone-native-touch]
     paths:
       - '.github/workflows/native-ios-link.yml'
       - 'native-ios/**'
