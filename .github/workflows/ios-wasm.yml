@@ -14,6 +14,11 @@ on:
 permissions:
   contents: read
 
+# Only the latest commit needs a full browser build; cancel outdated runs.
+concurrency:
+  group: ios-wasm-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   browser-build:
     runs-on: ubuntu-latest
