@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>Azeroth Survivors — тест iPhone</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0e1320;color:#ecf1fc}
+*{box-sizing:border-box}body{margin:0;padding:22px max(16px,env(safe-area-inset-right)) calc(35px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));max-width:650px;margin-inline:auto}
+h1{font-size:26px;line-height:1.25;margin:.25rem 0 .65rem}h2{font-size:18px;margin:0 0 12px}
+p{color:#c0cbe0;line-height:1.5}.muted{font-size:13px;color:#a6b5cc}.panel{border:1px solid #38465e;background:#182335;border-radius:16px;padding:18px;margin:17px 0}
+button{background:#ffd580;color:#1e2633;border:0;border-radius:10px;font-size:16px;font-weight:700;padding:12px 16px;min-height:45px;touch-action:manipulation}
+button.secondary{background:#2b405e;color:#edf4ff}
+button:disabled{opacity:.5}output{display:block;white-space:pre-wrap;word-break:break-word;line-height:1.6;font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+#triangle{width:100%;height:160px;border-radius:12px;background:#0b1220;display:block;margin-top:15px}
+#pad{height:135px;display:grid;place-items:center;border:2px dashed #637b9c;border-radius:15px;touch-action:none;user-select:none;-webkit-user-select:none;background:#101a2b}
+#pad.pressed{background:#263f60;border-color:#ffd580}small{font-size:12px;color:#a6b5cc}
+a{color:#ffdf9c}
+</style>
+</head>
+<body>
+<p class="muted">AZEROTH SURVIVORS · IPHONE COMPATIBILITY CHECK</p>
+<h1>Проверка Safari для игры</h1>
+<p>Эта страница проверяет WebGPU, WebAssembly и касания на вашем устройстве. <strong>Это пока не сама игра.</strong> Игровые файлы WoW сюда не загружаются.</p>
+<section class="panel">
+<h2>1. Графика и WebAssembly</h2>
+<button id="run">Запустить проверку</button>
+<canvas id="triangle" width="640" height="320" aria-label="WebGPU тестовый треугольник"></canvas>
+<output id="result">Нажмите «Запустить проверку».</output>
+</section>
+<section class="panel">
+<h2>2. Сенсорный экран</h2>
+<p>Нажмите пальцем на область ниже и поводите. Проверяются события, которые используются виртуальным джойстиком.</p>
+<div id="pad">Нажмите здесь и проведите пальцем</div>
+<output id="touch">Касания ещё не проверены.</output>
+</section>
+<section class="panel">
+<h2>Результат</h2>
+<p>После теста нажмите кнопку и отправьте результат в чат — по нему определим следующие изменения в сборке.</p>
+<button class="secondary" id="copy">Скопировать результат</button>
+<p class="muted">Проверка выполняется в браузере. Сведения никуда автоматически не отправляются. Личные файлы, геопозиция, аккаунты и пароли не запрашиваются.</p>
+</section>
+<script>
+(() => {
+ const report = {format:"azeroth-iphone-check-v1",webgpu:"not-tested",wasm:"not-tested",touch:"not-tested",https:window.isSecureContext,
+   screen:innerWidth+"x"+innerHeight,orientation:screen.orientation?.type||"unknown"};
+ const output=document.getElementById("result"), btn=document.getElementById("run"), pad=document.getElementById("pad");
+ const logs=[];
+ const line=(message)=>{logs.push(message); output.textContent=logs.join("\n")};
+ const shader = [
+  "@vertex fn vs(@builtin(vertex_index) n:u32)->@builtin(position) vec4f {",
+  "var p=array<vec2f,3>(vec2f(0.0,0.7),vec2f(-0.7,-0.7),vec2f(0.7,-0.7));",
+  "return vec4f(p[n],0.0,1.0);}",
+  "@fragment fn fs()->@location(0) vec4f { return vec4f(0.98,0.64,0.22,1.0);}"
+ ].join("\n");
+ async function test(){
+  btn.disabled=true; logs.length=0;output.textContent="";
+  line("Безопасное HTTPS-окружение: "+(report.https?"да":"нет"));
+  try {
+    const wasm=new Uint8Array([0,97,115,109,1,0,0,0]);
+    await WebAssembly.compile(wasm);
+    report.wasm="ok";line("WebAssembly: поддерживается");
+  }catch(e){report.wasm="fail";line("WebAssembly: ошибка "+String(e).slice(0,140))}
+  if(!navigator.gpu){report.webgpu="unavailable";line("WebGPU: недоступен");btn.disabled=false;return}
+  try{
+    const adapter=await navigator.gpu.requestAdapter({powerPreference:"high-performance"});
+    if(!adapter){report.webgpu="no-adapter";line("WebGPU: графический адаптер не найден");btn.disabled=false;return}
+    const device=await adapter.requestDevice();
+    report.webgpu="adapter-ready";line("WebGPU: адаптер и устройство доступны");
+    const canvas=document.getElementById("triangle");
+    const ctx=canvas.getContext("webgpu");
+    if(!ctx)throw new Error("Контекст canvas WebGPU недоступен");
+    const format=navigator.gpu.getPreferredCanvasFormat();
+    ctx.configure({device,format,alphaMode:"opaque"});
+    const module=device.createShaderModule({code:shader});
+    const info=await module.getCompilationInfo();
+    if(info.messages.some(e=>e.type==="error"))throw new Error("Ошибка WGSL shader");
+    const pipeline=device.createRenderPipeline({
+      layout:"auto",vertex:{module,entryPoint:"vs"},fragment:{module,entryPoint:"fs",targets:[{format}]},
+      primitive:{topology:"triangle-list"}
+    });
+    const encoder=device.createCommandEncoder();
+    const pass=encoder.beginRenderPass({colorAttachments:[{
+       view:ctx.getCurrentTexture().createView(),clearValue:{r:.03,g:.07,b:.13,a:1},
+       loadOp:"clear",storeOp:"store"
+    }]});
+    pass.setPipeline(pipeline);pass.draw(3);pass.end();
+    device.queue.submit([encoder.finish()]);
+    await device.queue.onSubmittedWorkDone();
+    report.webgpu="render-ok";line("WebGPU: тестовая сцена отрисована");
+    line("Если виден золотистый треугольник — рендеринг работает.");
+    device.destroy();
+  }catch(e){report.webgpu="render-failed";line("WebGPU: ошибка "+String(e).slice(0,180))}
+  btn.disabled=false;
+ }
+ btn.addEventListener("click",test);
+ const touches=new Set();
+ let count=0;
+ pad.addEventListener("pointerdown",e=>{e.preventDefault();pad.setPointerCapture?.(e.pointerId);touches.add(e.pointerId);count++;report.touch="down-ok";pad.classList.add("pressed");document.getElementById("touch").textContent="Нажатий: "+count+" · движение: ожидается";});
+ pad.addEventListener("pointermove",e=>{if(!touches.has(e.pointerId))return;e.preventDefault();report.touch="move-ok";document.getElementById("touch").textContent="Нажатий: "+count+" · движение: работает ("+Math.round(e.offsetX)+", "+Math.round(e.offsetY)+")";});
+ for(const name of ["pointerup","pointercancel","lostpointercapture"])pad.addEventListener(name,e=>{if(!touches.has(e.pointerId))return;touches.delete(e.pointerId);pad.classList.remove("pressed");if(report.touch==="move-ok")report.touch="complete";document.getElementById("touch").textContent="Касания: "+(report.touch==="complete"?"нажатие, движение, отпускание работают":"нажатие и отпускание работают");});
+ document.getElementById("copy").addEventListener("click",async()=>{
+   const txt=JSON.stringify(report,null,2)+"\n"+logs.join("\n");
+   try{await navigator.clipboard.writeText(txt);document.getElementById("copy").textContent="Скопировано";}catch(_){
+     const pre=document.createElement("pre");pre.textContent=txt;pre.style.whiteSpace="pre-wrap";pad.parentNode.append(pre);
+     document.getElementById("copy").textContent="Результат показан ниже";
+   }
+ });
+})();
+</script>
+</body></html>
