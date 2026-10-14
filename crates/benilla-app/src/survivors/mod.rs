@@ -16,6 +16,8 @@ mod menu;
 mod minimap;
 mod mobility;
 mod units;
+#[cfg(target_os = "ios")]
+mod native_touch;
 
 use benilla_world::schedule::WorldStage;
 use bevy::prelude::*;
@@ -133,6 +135,11 @@ impl Plugin for SurvivorsPlugin {
             .add_systems(OnEnter(Phase::Paused), pause)
             .add_systems(OnEnter(Phase::GameOver), unpause)
             .add_systems(OnEnter(Phase::Menu), (unpause, reset_run));
+        // Native touch controls use iOS multitouch, not browser JavaScript.
+        #[cfg(target_os = "ios")]
+        app.init_resource::<native_touch::HeldTouchKeys>()
+            .add_systems(Startup, native_touch::spawn_controls)
+            .add_systems(PreUpdate, native_touch::poll.after(bevy::input::InputSystems));
         if let Some(auto) = auto::from_env() {
             app.insert_resource(auto)
                 .add_systems(

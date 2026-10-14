@@ -4,7 +4,7 @@ name: Native iOS cargo probe
 on:
   workflow_dispatch:
   push:
-    branches: [iphone-native-probe]
+    branches: [iphone-native-probe, iphone-native-touch]
     paths:
       - '.github/workflows/native-ios-probe.yml'
       - 'native-ios/**'
@@ -38,6 +38,10 @@ jobs:
         with:
           toolchain: '1.98.1'
           targets: aarch64-apple-ios
+      - name: Native touch geometry regressions
+        run: |
+          rustc --edition=2024 --test native-ios/touch_geometry_tests.rs -o /tmp/native-touch-tests
+          /tmp/native-touch-tests
       - name: Cache Rust compilation
         uses: Swatinem/rust-cache@v2
         with:
